@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>C Code to Flowchart - CodeMirror 5 Dark Theme</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- CodeMirror 5 CSS & Theme -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css" rel="stylesheet" />
+
+  <!-- Custom styles -->
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+
+  <h1>C Code to Flowchart (Single CodeMirror 5 Editor)</h1>
+
+  <textarea id="editor">
+  // Sample C code
+#include <stdio.h>
+
+int main() {
+    int a = 0, b = 5;
+
+    printf("Enter a number: ");
+    scanf("%d", &a);
+
+    if (a > b) {
+        printf("a is greater than b\n");
+    } else {
+        printf("a is less or equal to b\n");
+    }
+
+    while (a < 10) {
+        a = a + 1;
+        printf("Incremented a to %d\n", a);
+    }
+
+    printf("Loop finished\n");
+
+    return 0;
+}
+  </textarea>
+
+  <button id="generate">Generate Flowchart</button>
+
+  <div id="flowchart-container" aria-live="polite">
+    <div id="diagram"></div>
+  </div>
+
+  <!-- External libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
+  <script src="https://flowchart.js.org/flowchart-latest.js"></script>
+
+  <!-- CodeMirror 5 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+
+  <!-- Custom JS -->
+  <script src="flow.js"></script>
+
+</body>
+</html>
