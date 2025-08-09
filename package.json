@@ -1,12 +1,12 @@
 {
-  "name": "c-code-to-flowchart",
+  "name": "c2flow",
   "version": "1.0.0",
-  "description": "A simple C code to flowchart converter web app using CodeMirror 5 and flowchart.js",
+  "description": "A simple C code to flowchart generator web app using flowchart.js",
   "main": "index.html",
   "scripts": {
     "start": "serve ."
   },
-  "author": "Your Name",
+  "author": "Md. Anisur Rahman",
   "license": "MIT",
   "devDependencies": {
     "serve": "^14.2.0"
