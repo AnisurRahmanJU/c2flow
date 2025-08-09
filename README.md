@@ -19,10 +19,10 @@ Uses **CodeMirror 5** for a syntax-highlighted editable C code editor, and **flo
 
 The project uses the following external libraries loaded via CDN:
 
-- [Raphael.js](https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js)  
+- [Raphael.js](https://flowchart.js.org/) 
   - JavaScript vector graphics library used by flowchart.js for SVG rendering.
 
-- [flowchart.js](https://flowchart.js.org/flowchart-latest.js)  
+- [flowchart.js](https://flowchart.js.org/)  
   - Library to parse and render flowcharts using SVG.
 
 - [CodeMirror 5](https://codemirror.net/)  
