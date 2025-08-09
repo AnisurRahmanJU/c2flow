@@ -1,0 +1,79 @@
+body {
+  background-color: #181a1f;
+  color: #eee;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+h1 {
+  color: #50fa7b;
+  margin-bottom: 1.5rem;
+  user-select: none;
+  text-align: center;
+  text-shadow: 0 0 8px #50fa7baa;
+}
+.CodeMirror {
+  width: 900px !important;
+  height: 320px !important;
+  border-radius: 8px;
+  box-shadow: 0 0 15px #50fa7baa;
+  font-size: 1.1rem;
+}
+#generate {
+  margin: 1.5rem auto;
+  padding: 0.75rem 2.5rem;
+  font-size: 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #50fa7b, #007f5f);
+  border: none;
+  color: #181a1f;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  box-shadow: 0 6px 15px rgba(80, 250, 123, 0.5);
+  display: block;
+  max-width: 900px;
+  width: 100%;
+}
+#generate:hover {
+  background: linear-gradient(90deg, #007f5f, #50fa7b);
+  box-shadow: 0 8px 20px rgba(0, 127, 95, 0.6);
+}
+#flowchart-container {
+  width: 900px;
+  max-width: 100%;
+  background-color: #22242a;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(80, 250, 123, 0.3);
+  padding: 1.5rem;
+  overflow-x: auto;
+  min-height: 480px;
+  user-select: none;
+  margin-bottom: 2rem;
+}
+#diagram {
+  min-width: 600px;
+  min-height: 450px;
+  margin: 0 auto;
+}
+/* Flowchart block colors */
+.start-element rect { fill: #50fa7b !important; stroke: #007f5f !important; }
+.end-element rect { fill: #ff5555 !important; stroke: #b22222 !important; }
+.operation rect { fill: #6272a4 !important; stroke: #44475a !important; }
+.condition rect { fill: #ffb86c !important; stroke: #bd6b00 !important; }
+.inputoutput rect { fill: #8be9fd !important; stroke: #00aabb !important; }
+.start-element text, .end-element text,
+.operation text, .condition text, .inputoutput text {
+  fill: #181a1f !important;
+  font-weight: 700;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .CodeMirror, #generate, #flowchart-container {
+    width: 100% !important;
+  }
+}
