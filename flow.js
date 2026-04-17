@@ -1,256 +1,218 @@
-// Initialize CodeMirror 5 editor
-const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-  lineNumbers: true,
-  mode: "text/x-csrc",
-  theme: "dracula",
-  tabSize: 4,
-  indentUnit: 4,
-  lineWrapping: true,
-  autofocus: true
-});
+/**
+ * Developer: Md. Anisur Rahman
+ * Adaptation: C-Source to Flowchart Generator
+ */
 
-function parseCtoFlowchart(code) {
-  const lines = code.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  let nodeId = 1;
-  const nodes = [];
-  const connections = [];
+let editor;
+let currentLoopUpdate = null;
+let currentFunctionName = null;
 
-  nodes.push(`st=>start: Start`);
-  let lastNode = 'st';
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (/^if\s*\((.*)\)\s*{?$/.test(line)) {
-      const condText = line.match(/^if\s*\((.*)\)/)[1];
-      const condId = `cond${nodeId++}`;
-      nodes.push(`${condId}=>condition: ${condText}?`);
-      connections.push(`${lastNode}->${condId}`);
+// ================== INIT ==================
+window.onload = function () {
+  editor = CodeMirror(document.getElementById("editor"), {
+    mode: "text/x-csrc",
+    lineNumbers: true,
+    theme: "default",
+    lineWrapping: true,
+    value: `#include <stdio.h>
 
-      i++;
-      let ifBlock = [];
-      let openBraces = 0;
-      if (lines[i] && lines[i].startsWith('{')) {
-        openBraces = 1;
-        i++;
-      }
-      while (i < lines.length && openBraces > 0) {
-        if (lines[i].includes('{')) openBraces++;
-        if (lines[i].includes('}')) openBraces--;
-        if (openBraces > 0) ifBlock.push(lines[i]);
-        i++;
-      }
-
-      let firstIfNode = null;
-      let prevIfNode = null;
-      ifBlock.forEach(opLine => {
-        const opId = `op${nodeId++}`;
-        const type = (opLine.includes('printf') || opLine.includes('scanf')) ? 'inputoutput' : 'operation';
-        nodes.push(`${opId}=>${type}: ${opLine}`);
-        if (!firstIfNode) firstIfNode = opId;
-        if (prevIfNode) connections.push(`${prevIfNode}->${opId}`);
-        prevIfNode = opId;
-      });
-
-      let elseBlock = [];
-      let hasElse = false;
-      if (i < lines.length && /^else\b/.test(lines[i])) {
-        hasElse = true;
-        i++;
-        if (lines[i] && lines[i].startsWith('{')) {
-          openBraces = 1;
-          i++;
+int main() {
+    int i;
+    for(i = 1; i <= 10; i++) {
+        if(i % 2 == 0) {
+            printf("Even: %d", i);
         } else {
-          openBraces = 0;
+            printf("Odd: %d", i);
         }
-        while (i < lines.length && openBraces > 0) {
-          if (lines[i].includes('{')) openBraces++;
-          if (lines[i].includes('}')) openBraces--;
-          if (openBraces > 0) elseBlock.push(lines[i]);
-          i++;
-        }
+    }
+    return 0;
+}`
+  });
+};
+
+// ================== C-TO-JS PRE-PROCESSOR ==================
+function prepareCCode(cCode) {
+  let js = cCode;
+
+  // 1. Remove Headers and Comments
+  js = js.replace(/#include.*/g, '');
+  js = js.replace(/\/\/.*/g, '');
+  js = js.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // 2. Transform C Functions: "int main()" -> "function main()"
+  const types = "int|float|double|char|long|void|size_t";
+  const funcRegex = new RegExp(`\\b(${types})\\s+([a-zA-Z_]\\w*)\\s*\\(`, 'g');
+  js = js.replace(funcRegex, 'function $2(');
+
+  // 3. Transform Variables: "int i = 0;" -> "let i = 0;"
+  // Negative lookahead (?!\s*\() ensures we don't hit function definitions
+  const varRegex = new RegExp(`\\b(${types})\\b(?![\\s\\w]*\\()`, 'g');
+  js = js.replace(varRegex, 'let ');
+
+  // 4. Handle printf/scanf as IO calls
+  js = js.replace(/printf\s*\(/g, 'console.log(');
+  js = js.replace(/scanf\s*\(/g, 'prompt(');
+
+  // 5. Remove C-specific pointers/address-of for parsing
+  js = js.replace(/&([a-zA-Z_]\w*)/g, '$1');
+
+  return js;
+}
+
+// ================== FLOWCHART GENERATOR ==================
+function generateFlowchart() {
+  const cCode = editor.getValue();
+  const processedCode = prepareCCode(cCode);
+
+  const output = document.getElementById("output");
+  output.innerHTML = ""; 
+
+  try {
+    // Parse the bridged JS code using Esprima
+    const ast = esprima.parseScript(processedCode);
+    const flowCode = buildFlow(ast);
+    const diagram = flowchart.parse(flowCode);
+    
+    diagram.drawSVG(output, {
+      'line-width': 2,
+      'font-size': 14,
+      'font-family': 'Inter',
+      'yes-text': 'TRUE',
+      'no-text': 'FALSE',
+      'symbols': {
+        'start': { 'fill': '#6aa84f', 'font-color':'#fff' },
+        'end': { 'fill': '#e06666', 'font-color':'#fff' },
+        'operation': { 'fill': '#f6b26b' },
+        'condition': { 'fill': '#3d85c6', 'font-color':'#fff' },
+        'inputoutput': { 'fill': '#ffd966' },
+        'subroutine': { 'fill': '#8e7cc3', 'font-color':'#fff' }
+      }
+    });
+
+  } catch (err) {
+    output.innerHTML = `<p style="color:red">Parsing Error: ${err.message}. <br> Ensure your C code has valid block structures.</p>`;
+  }
+}
+
+// ================== AST WALK (Updated for C logic) ==================
+function buildFlow(ast) {
+  let nodes = ["st=>start: START|start"];
+  let edges = [];
+  let count = 1;
+  const newId = (pre) => pre + (count++);
+
+  function walk(node, prev) {
+    if (!node) return prev;
+
+    switch(node.type) {
+      case "Program":
+      case "BlockStatement": {
+        let curr = prev;
+        node.body.forEach(n => curr = walk(n, curr));
+        return curr;
       }
 
-      let firstElseNode = null;
-      let prevElseNode = null;
-      elseBlock.forEach(opLine => {
-        const opId = `op${nodeId++}`;
-        const type = (opLine.includes('printf') || opLine.includes('scanf')) ? 'inputoutput' : 'operation';
-        nodes.push(`${opId}=>${type}: ${opLine}`);
-        if (!firstElseNode) firstElseNode = opId;
-        if (prevElseNode) connections.push(`${prevElseNode}->${opId}`);
-        prevElseNode = opId;
-      });
-
-      if (firstIfNode) connections.push(`${condId}(yes)->${firstIfNode}`);
-      else connections.push(`${condId}(yes)->merge${nodeId}`);
-
-      if (hasElse && firstElseNode) connections.push(`${condId}(no)->${firstElseNode}`);
-
-      const mergeId = `merge${nodeId++}`;
-      nodes.push(`${mergeId}=>operation: Continue`);
-
-      if (prevIfNode) connections.push(`${prevIfNode}->${mergeId}`);
-      else connections.push(`${condId}(yes)->${mergeId}`);
-
-      if (hasElse) {
-        if (prevElseNode) connections.push(`${prevElseNode}->${mergeId}`);
-        else connections.push(`${condId}(no)->${mergeId}`);
-      } else {
-        connections.push(`${condId}(no)->${mergeId}`);
+      case "VariableDeclaration": {
+        const vId = newId("var");
+        const vText = node.declarations.map(d => {
+          return `${d.id.name}${d.init ? ' = ' + getText(d.init) : ''}`;
+        }).join(", ");
+        nodes.push(`${vId}=>operation: DECLARE: ${vText}`);
+        edges.push(`${prev}->${vId}`);
+        return vId;
       }
 
-      lastNode = mergeId;
+      case "IfStatement": {
+        const dId = newId("if");
+        nodes.push(`${dId}=>condition: IF (${getText(node.test)})`);
+        edges.push(`${prev}->${dId}`);
 
-    } else if (/^while\s*\((.*)\)\s*{?$/.test(line)) {
-      const condText = line.match(/^while\s*\((.*)\)/)[1];
-      const condId = `cond${nodeId++}`;
-      nodes.push(`${condId}=>condition: ${condText}?`);
-      connections.push(`${lastNode}->${condId}`);
+        const yesEnd = walk(node.consequent, dId + "(yes)");
+        const noEnd = node.alternate ? walk(node.alternate, dId + "(no)") : dId + "(no)";
 
-      i++;
-      let loopBlock = [];
-      let openBraces = 0;
-      if (lines[i] && lines[i].startsWith('{')) {
-        openBraces = 1;
-        i++;
-      }
-      while (i < lines.length && openBraces > 0) {
-        if (lines[i].includes('{')) openBraces++;
-        if (lines[i].includes('}')) openBraces--;
-        if (openBraces > 0) loopBlock.push(lines[i]);
-        i++;
+        const join = newId("join");
+        nodes.push(`${join}=>operation: END IF`);
+        edges.push(`${yesEnd}->${join}`);
+        edges.push(`${noEnd}->${join}`);
+        return join;
       }
 
-      let firstLoopNode = null;
-      let prevLoopNode = null;
-      loopBlock.forEach(opLine => {
-        const opId = `op${nodeId++}`;
-        const type = (opLine.includes('printf') || opLine.includes('scanf')) ? 'inputoutput' : 'operation';
-        nodes.push(`${opId}=>${type}: ${opLine}`);
-        if (!firstLoopNode) firstLoopNode = opId;
-        if (prevLoopNode) connections.push(`${prevLoopNode}->${opId}`);
-        prevLoopNode = opId;
-      });
+      case "ForStatement": {
+        const fInit = node.init ? walk(node.init, prev) : prev;
+        const fCond = newId("for");
+        nodes.push(`${fCond}=>condition: FOR (${getText(node.test)})`);
+        edges.push(`${fInit}->${fCond}`);
 
-      if (firstLoopNode) connections.push(`${condId}(yes)->${firstLoopNode}`);
-      if (prevLoopNode) connections.push(`${prevLoopNode}->${condId}`);
+        const fUpdate = newId("upd");
+        const prevUpdate = currentLoopUpdate;
+        currentLoopUpdate = fUpdate;
 
-      const afterLoopId = `op${nodeId++}`;
-      nodes.push(`${afterLoopId}=>operation: Loop end`);
-      connections.push(`${condId}(no)->${afterLoopId}`);
+        const fBodyEnd = walk(node.body, fCond + "(yes)");
+        nodes.push(`${fUpdate}=>operation: ${getText(node.update)}`);
+        edges.push(`${fBodyEnd}->${fUpdate}`);
+        edges.push(`${fUpdate}(left)->${fCond}`);
 
-      lastNode = afterLoopId;
-
-    } else if (/^for\s*\((.*)\)\s*{?$/.test(line)) {
-      const condText = line.match(/^for\s*\((.*)\)/)[1];
-      const condId = `cond${nodeId++}`;
-      nodes.push(`${condId}=>condition: ${condText}?`);
-      connections.push(`${lastNode}->${condId}`);
-
-      i++;
-      let loopBlock = [];
-      let openBraces = 0;
-      if (lines[i] && lines[i].startsWith('{')) {
-        openBraces = 1;
-        i++;
-      }
-      while (i < lines.length && openBraces > 0) {
-        if (lines[i].includes('{')) openBraces++;
-        if (lines[i].includes('}')) openBraces--;
-        if (openBraces > 0) loopBlock.push(lines[i]);
-        i++;
+        currentLoopUpdate = prevUpdate;
+        return fCond + "(no)";
       }
 
-      let firstLoopNode = null;
-      let prevLoopNode = null;
-      loopBlock.forEach(opLine => {
-        const opId = `op${nodeId++}`;
-        const type = (opLine.includes('printf') || opLine.includes('scanf')) ? 'inputoutput' : 'operation';
-        nodes.push(`${opId}=>${type}: ${opLine}`);
-        if (!firstLoopNode) firstLoopNode = opId;
-        if (prevLoopNode) connections.push(`${prevLoopNode}->${opId}`);
-        prevLoopNode = opId;
-      });
+      case "WhileStatement": {
+        const wId = newId("while");
+        nodes.push(`${wId}=>condition: WHILE (${getText(node.test)})`);
+        edges.push(`${prev}->${wId}`);
+        const wEnd = walk(node.body, wId + "(yes)");
+        edges.push(`${wEnd}(left)->${wId}`);
+        return wId + "(no)";
+      }
 
-      if (firstLoopNode) connections.push(`${condId}(yes)->${firstLoopNode}`);
-      if (prevLoopNode) connections.push(`${prevLoopNode}->${condId}`);
+      case "FunctionDeclaration": {
+        const funcId = newId("func");
+        nodes.push(`${funcId}=>subroutine: FUNCTION: ${node.id.name}()`);
+        edges.push(`${prev}->${funcId}`);
+        return walk(node.body, funcId);
+      }
 
-      const afterLoopId = `op${nodeId++}`;
-      nodes.push(`${afterLoopId}=>operation: Loop end`);
-      connections.push(`${condId}(no)->${afterLoopId}`);
+      case "ReturnStatement": {
+        const rId = newId("ret");
+        nodes.push(`${rId}=>operation: RETURN ${getText(node.argument)}`);
+        edges.push(`${prev}->${rId}`);
+        return rId;
+      }
 
-      lastNode = afterLoopId;
+      case "ExpressionStatement": {
+        const expr = node.expression;
+        const eId = newId("exp");
+        let txt = getText(expr);
+        
+        // Detect IO
+        const isIO = txt.includes("console.log") || txt.includes("prompt");
+        const cleanTxt = txt.replace("console.log", "printf").replace("prompt", "scanf");
+        
+        nodes.push(`${eId}=>${isIO ? 'inputoutput' : 'operation'}: ${cleanTxt}`);
+        edges.push(`${prev}->${eId}`);
+        return eId;
+      }
 
-    } else if (/^(printf|scanf)\s*\(.*\)\s*;/.test(line)) {
-      const opId = `io${nodeId++}`;
-      nodes.push(`${opId}=>inputoutput: ${line}`);
-      connections.push(`${lastNode}->${opId}`);
-      lastNode = opId;
-      i++;
-    } else if (line.endsWith(';')) {
-      const opId = `op${nodeId++}`;
-      nodes.push(`${opId}=>operation: ${line}`);
-      connections.push(`${lastNode}->${opId}`);
-      lastNode = opId;
-      i++;
-    } else {
-      i++;
+      default: return prev;
     }
   }
 
-  nodes.push(`e=>end: End`);
-  connections.push(`${lastNode}->e`);
-
-  return nodes.join('\n') + '\n' + connections.join('\n');
+  const final = walk(ast, "st");
+  nodes.push("e=>end: END|end");
+  edges.push(`${final}->e`);
+  return nodes.join("\n") + "\n" + edges.join("\n");
 }
 
-document.getElementById('generate').addEventListener('click', () => {
-  const code = editor.getValue().trim();
-  if (!code) {
-    alert('Please enter some C code!');
-    return;
+// ================== HELPER: GET TEXT FROM AST ==================
+function getText(node) {
+  if (!node) return "";
+  switch (node.type) {
+    case "Identifier": return node.name;
+    case "Literal": return node.raw;
+    case "BinaryExpression": return `${getText(node.left)} ${node.operator} ${getText(node.right)}`;
+    case "AssignmentExpression": return `${getText(node.left)} = ${getText(node.right)}`;
+    case "UpdateExpression": return node.prefix ? `${node.operator}${getText(node.argument)}` : `${getText(node.argument)}${node.operator}`;
+    case "CallExpression": return `${getText(node.callee)}(${node.arguments.map(getText).join(", ")})`;
+    default: return "";
   }
-  try {
-    const flowDef = parseCtoFlowchart(code);
-    const diagramDiv = document.getElementById('diagram');
-    diagramDiv.innerHTML = '';
-    const diagram = flowchart.parse(flowDef);
-    diagram.drawSVG('diagram', {
-      'line-width': 3,
-      'font-size': 16,
-      'yes-text': 'yes',
-      'no-text': 'no',
-      'arrow-end': 'block',
-      'scale': 1,
-      'symbols': {
-        'start': {
-          'font-color': '#181a1f',
-          'element-color': '#50fa7b',
-          'fill': '#50fa7b'
-        },
-        'end': {
-          'font-color': '#181a1f',
-          'element-color': '#ff5555',
-          'fill': '#ff5555'
-        },
-        'operation': {
-          'font-color': '#eee',
-          'element-color': '#6272a4',
-          'fill': '#6272a4'
-        },
-        'condition': {
-          'font-color': '#181a1f',
-          'element-color': '#ffb86c',
-          'fill': '#ffb86c'
-        },
-        'inputoutput': {
-          'font-color': '#181a1f',
-          'element-color': '#8be9fd',
-          'fill': '#8be9fd'
-        }
-      }
-    });
-  } catch (err) {
-    document.getElementById('diagram').innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
-  }
-});
+}
