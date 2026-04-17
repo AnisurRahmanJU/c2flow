@@ -3,6 +3,14 @@
 
 C Code to Flowchart Generator - A simple web application that generates inputed C code into a flowchart visualization. Uses ```CodeMirror 5``` for a syntax-highlighted editable C code editor, and ```flowchart.js``` for drawing flowcharts from parsed code.
 
+## Workable Code
+- Simple Code
+- Condition
+- Loop
+- Others(Construction)
+
+
+
 ---
 
 ## Features
