@@ -54,7 +54,7 @@ The project uses the following external libraries loaded via CDN:
 - `styles.css` — custom styles for dark theme and responsive layout  
 - `flow.js` — JavaScript logic for parsing C code and generating flowchart  
 
----
+--- 
 
 ## License
 
